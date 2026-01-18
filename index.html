@@ -1,0 +1,988 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Umbrix AI</title>
+
+<style>
+  :root{
+    --bg:#07111f; --panel:#0c1830; --stage:#0a1530; --glass:rgba(12,24,48,.65);
+    --text:#cfe6ff; --cyan:#00d1ff; --cyan-soft:#7be6ff; --pink:#ff4d82; --green:#6affb3; --ring:#5be1ff;
+    --zoom:1; --orb:clamp(160px, 26dvw, 340px);
+    --core-blue:#11c9ff; --core-green:#21e6a8; --core-yellow:#ffd766; --core-red:#ff5b6e;
+    --core-current: var(--core-blue);
+    --pulse: 3.6s;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;color:var(--text);font-family:"Segoe UI",Roboto,Arial,sans-serif;
+    background: radial-gradient(1600px at 50% 40%, #0a1736, var(--bg)) fixed; overflow:hidden;}
+
+  .space{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      radial-gradient(1px 1px at 8% 20%, rgba(255,255,255,.10), transparent),
+      radial-gradient(1.5px 1.5px at 82% 70%, rgba(255,255,255,.08), transparent),
+      radial-gradient(1px 1px at 45% 85%, rgba(255,255,255,.06), transparent),
+      radial-gradient(1px 1px at 72% 12%, rgba(255,255,255,.07), transparent);
+    filter:blur(.4px);}
+
+  .shell{position:relative;z-index:1;min-height:100dvh;height:100dvh;display:grid;
+    grid-template-columns: clamp(240px, 28dvw, 420px) 1fr; gap:14px; padding: clamp(10px,2.4dvh,20px);
+    transition:grid-template-columns .25s ease;}
+  .shell.collapsed{grid-template-columns:1fr;}
+
+  /* Sidebar with edge scrollbar + sticky header */
+  .sidebar{
+    backdrop-filter:blur(6px);
+    background:linear-gradient(180deg, rgba(10,22,48,.65), rgba(10,22,48,.45));
+    border:1px solid rgba(0,209,255,.18); border-radius:18px; box-shadow:0 0 24px rgba(0,209,255,.18);
+    display:flex; flex-direction:column; min-height:0; overflow-y:auto; scrollbar-gutter: stable both-edges;
+  }
+  .side-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);
+    position:sticky; top:0; z-index:2; background:linear-gradient(180deg, rgba(10,22,48,.80), rgba(10,22,48,.60)); backdrop-filter:blur(4px);}
+  .side-title{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:2px;font-size:18px;}
+  .side-tools{display:flex;gap:8px;}
+  .mini-btn{padding:6px 10px;border-radius:10px;cursor:pointer;background:rgba(0,209,255,.08);
+    border:1px solid rgba(0,209,255,.25);color:var(--text);font-size:12px;}
+  .mini-btn:hover{box-shadow:0 0 16px rgba(0,209,255,.25)}
+
+  /* Inline SVG logo */
+  .logo{width:22px;height:22px}
+  .logo svg{display:block}
+
+  .history{flex:1; min-height:0; overflow:visible; padding:12px;}
+  .row{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+  .tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);opacity:.9;}
+  .tag.user{background:rgba(255,255,255,.07)}
+  .tag.ai{color:var(--cyan);border-color:rgba(0,209,255,.3);background:rgba(0,209,255,.10)}
+  .msg{flex:1;font-size:14px;line-height:1.38}
+  .time{font-size:11px;opacity:.55;margin-left:auto;white-space:nowrap}
+
+  /* Stage */
+  .stage{position:relative;background:linear-gradient(180deg, rgba(10,21,48,.75), rgba(10,21,48,.55));
+    border:1px solid rgba(0,209,255,.22); border-radius:20px; box-shadow:0 0 34px rgba(0,209,255,.22);
+    display:flex; flex-direction:column; transform:scale(var(--zoom)); transform-origin:center center; overflow:hidden; min-height:0;}
+  .stage-inner{flex:1;display:flex;flex-direction:column;}
+  .bar{display:flex;align-items:end;justify-content:space-between;padding:18px 22px 4px;}
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .title{display:flex;align-items:center;gap:10px;font-size:28px;font-weight:800;letter-spacing:3px;}
+  .brand .sub{opacity:.75;letter-spacing:3px;font-size:12px;}
+  .status{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .pill{padding:6px 10px;border-radius:999px;text-transform:uppercase;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.06);font-size:12px;letter-spacing:2px;}
+  .pill.sleep{color:var(--pink);border-color:rgba(255,77,130,.35);background:rgba(255,77,130,.12)}
+  .pill.awake{color:var(--green);border-color:rgba(106,255,179,.35);background:rgba(106,255,179,.12)}
+  .pill.mic{color:var(--cyan-soft)}
+
+  .orb-zone{position:relative;display:grid;place-items:center;padding:10px 22px 70px;flex:1;}
+  .orb-wrap{width:var(--orb);height:var(--orb);filter:drop-shadow(0 0 24px rgba(0,209,255,.28));perspective:800px;}
+  .orb{width:100%;height:100%;border-radius:50%;background:radial-gradient(closest-side,var(--core-current) 0%,#0c4a62 50%,#0a2b3a 100%);
+    box-shadow:inset 0 0 120px rgba(0,209,255,.45),0 0 60px rgba(0,209,255,.25);position:relative;animation:breathe var(--pulse) ease-in-out infinite;transform:translateZ(0);}
+  .orb.flash{animation: flashPulse .6s ease-in-out 1;}
+  @keyframes flashPulse{0%{filter:brightness(1.6)}100%{filter:brightness(1)}}
+  .ring{position:absolute;inset:-14px;border-radius:50%;border:2px solid rgba(91,225,255,.25);box-shadow:0 0 20px rgba(91,225,255,.25);animation:spin 12s linear infinite;}
+  .ring.r2{inset:-28px;opacity:.60;animation-duration:20s}
+  .ring.r3{inset:-42px;opacity:.35;animation-duration:28s}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+  /* Voice wave sync canvas */
+  #waveCanvas{position:absolute;inset:0;pointer-events:none;opacity:.95;}
+
+  .controls{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;
+    padding:12px 16px 18px;background:linear-gradient(180deg,transparent,rgba(10,21,48,.55));border-top:1px solid rgba(255,255,255,.06);}
+  .btn{padding:10px 14px;border-radius:12px;border:1px solid rgba(0,209,255,.25);background:rgba(0,209,255,.08);color:var(--text);cursor:pointer;transition:.18s;font-weight:600;}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 0 16px rgba(0,209,255,.25)}
+  .btn.ok{border-color:rgba(106,255,179,.35);background:rgba(106,255,179,.12)}
+  .btn.danger{border-color:rgba(255,77,130,.35);background:rgba(255,77,130,.12)}
+  .send{width:110px}
+
+  .inputbar{position:absolute;left:50%;transform:translateX(-50%);bottom:66px;display:flex;gap:10px;width:min(860px,86%);}
+  .textbox{flex:1;padding:12px 14px;border-radius:12px;border:1px solid rgba(0,209,255,.25);background:rgba(255,255,255,.06);color:var(--text);outline:none;}
+  .textbox::placeholder{color:#9bbad6}
+
+  .voice-group{display:flex;gap:8px;align-items:center;padding:6px 10px;border-radius:12px;border:1px solid rgba(0,209,255,.25);
+    background:rgba(0,209,255,.08);color:var(--text);}
+  .voice-group select{max-width:240px;background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;}
+
+  @media (max-width:860px){.shell{grid-template-columns:1fr}.sidebar{display:none}}
+
+  /* Sidebar scrollbar style */
+  .sidebar::-webkit-scrollbar{width:12px;}
+  .sidebar::-webkit-scrollbar-track{background:rgba(20,24,32,.85);border-radius:10px;}
+  .sidebar::-webkit-scrollbar-thumb{background:#b3b3b3;border-radius:10px;border:2px solid rgba(20,24,32,.85);}
+  .sidebar::-webkit-scrollbar-thumb:hover{background:#c8c8c8;}
+  .sidebar{scrollbar-width:thin;scrollbar-color:#b3b3b3 rgba(20,24,32,.85);}
+
+  /* Floating Show Chat when collapsed */
+  #chatRevealBtn{position:fixed;top:12px;left:12px;z-index:9999;display:none;padding:8px 12px;border-radius:10px;
+    border:1px solid rgba(0,209,255,.25);background:rgba(0,209,255,.10);color:var(--text);font-weight:600;backdrop-filter:blur(4px);
+    box-shadow:0 0 16px rgba(0,209,255,.18);cursor:pointer;}
+  .shell.collapsed #chatRevealBtn{display:inline-flex;}
+
+  /* Cheatsheet modal */
+  #cheatsOverlay{position:fixed;inset:0;z-index:10000;display:none;}
+  #cheatsOverlay.show{display:block;}
+  .cheats-backdrop{position:absolute;inset:0;background:rgba(3,10,22,.55);backdrop-filter:blur(4px);}
+  .cheats-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(980px,92vw);max-height:min(78vh,800px);
+    background:linear-gradient(180deg, rgba(15,26,54,.90), rgba(15,26,54,.75)); border:1px solid rgba(0,209,255,.25);
+    box-shadow:0 0 28px rgba(0,209,255,.25), inset 0 0 60px rgba(0,209,255,.06); border-radius:16px; overflow:hidden; display:flex; flex-direction:column;}
+  .cheats-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.10);}
+  .cheats-head h3{margin:0;font-size:16px;letter-spacing:1px;}
+  .closeBtn{padding:6px 10px;border-radius:10px;cursor:pointer;background:rgba(0,209,255,.10);border:1px solid rgba(0,209,255,.25);color:var(--text);font-weight:700;}
+  .closeBtn:hover{box-shadow:0 0 12px rgba(0,209,255,.25)}
+  .cheats-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px;overflow:auto;scrollbar-width:thin;scrollbar-color:#b3b3b3 rgba(20,24,32,.85);}
+  .cheats-body::-webkit-scrollbar{width:12px;}
+  .cheats-body::-webkit-scrollbar-track{background:rgba(20,24,32,.85);border-radius:10px;}
+  .cheats-body::-webkit-scrollbar-thumb{background:#b3b3b3;border-radius:10px;border:2px solid rgba(20,24,32,.85);}
+  .cheats-body::-webkit-scrollbar-thumb:hover{background:#c8c8c8;}
+  .cheats-col h4{margin:.2rem 0 .4rem;font-size:14px;color:#8bd6ff;letter-spacing:.5px;}
+  .cheats-col ul{margin:.2rem 0 1rem;padding-left:18px;}
+  .cheats-col li{margin:.18rem 0;}
+  .cheats-col code{background:rgba(0,209,255,.12);border:1px solid rgba(0,209,255,.25);color:var(--text);padding:2px 6px;border-radius:8px;}
+
+  /* Mic help inline card (Permissions API guided) */
+  .mic-hint{
+    margin: 8px 12px 0 12px;
+    border: 1px solid rgba(0,209,255,.25);
+    background: linear-gradient(180deg, rgba(15,26,54,.70), rgba(15,26,54,.50));
+    border-radius: 12px;
+    box-shadow: 0 0 16px rgba(0,209,255,.18);
+    color: var(--text);
+  }
+  .mic-hint-head{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);}
+  .mic-hint-body{ padding:8px 12px; font-size:13px; line-height:1.5; }
+  .mic-hint ol{ margin: 6px 0; padding-left: 18px; }
+  .mic-hint .closeBtn{padding:6px 10px;border-radius:10px;cursor:pointer;background:rgba(0,209,255,.10);border:1px solid rgba(0,209,255,.25);color:var(--text);}
+  .mic-hint .closeBtn:hover{ box-shadow:0 0 10px rgba(0,209,255,.25); }
+</style>
+</head>
+<body>
+<div class="space"></div>
+
+<div class="shell" id="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <div class="side-title">
+        <span class="logo" title="Umbrix AI">
+          <!-- Minimal inline SVG logo -->
+          <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <radialGradient id="g" cx="50%" cy="40%" r="60%">
+                <stop offset="0" stop-color="#00d1ff"/>
+                <stop offset="1" stop-color="#0c1830"/>
+              </radialGradient>
+            </defs>
+            <circle cx="32" cy="32" r="28" fill="url(#g)"/>
+            <path d="M20 34c6-10 18-10 24 0" stroke="#7be6ff" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <circle cx="32" cy="32" r="6" fill="#7be6ff"/>
+          </svg>
+        </span>
+        AI CHAT
+      </div>
+      <div class="side-tools">
+        <button class="mini-btn" id="toggleSide">☰ Toggle</button>
+        <button class="mini-btn" id="clearBtn">🧹 Clear</button>
+        <button class="mini-btn" id="cheatBtn" title="Quick Commands">🧪 Cheats</button>
+        <button class="mini-btn" id="micHelpBtn" title="Microphone help">🎤 Mic help</button>
+      </div>
+    </div>
+
+    <!-- Mic help card (auto via Permissions API) -->
+    <div id="micHintCard" class="mic-hint" hidden>
+      <div class="mic-hint-head">
+        <strong>Microphone permission</strong>
+        <button class="closeBtn" id="micHintClose" aria-label="Close">✖</button>
+      </div>
+      <div class="mic-hint-body">
+        <ol>
+          <li>Click the <b>lock 🔒</b> icon near the URL.</li>
+          <li>Set <b>Microphone → “Allow while visiting”</b>.</li>
+          <li>Refresh if the browser asks.</li>
+        </ol>
+        <small>Note: Site must be <b>HTTPS</b> (GitHub Pages is HTTPS).</small>
+      </div>
+    </div>
+
+    <div class="history" id="history" aria-live="polite"></div>
+  </aside>
+
+  <!-- Show Chat (when collapsed) -->
+  <button id="chatRevealBtn" title="Show Chat">📂 Show Chat</button>
+
+  <!-- Stage -->
+  <section class="stage" id="stage">
+    <div class="stage-inner">
+      <div class="bar">
+        <div class="brand">
+          <div class="title">UMBRIX AI</div>
+          <div class="sub" id="subtitle">IDLE</div>
+        </div>
+        <div class="status">
+          <div class="pill sleep" id="awakePill">SLEEP</div>
+          <div class="pill mic" id="micPill">MIC: OFF</div>
+          <div class="pill" id="formatPill">TIME: 12h</div>
+          <div class="voice-group">
+            <span>🎙️ Voice:</span>
+            <select id="voiceSelect">
+              <option value="auto" selected>Auto (Hinglish)</option>
+              <option value="hi-IN">Hindi (हिन्दी)</option>
+              <option value="en-IN">English (India)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="orb-zone" id="orbZone">
+        <div class="orb-wrap" id="orbWrap">
+          <div class="orb" id="orb">
+            <div class="ring r1"></div>
+            <div class="ring r2"></div>
+            <div class="ring r3"></div>
+          </div>
+        </div>
+
+        <!-- Voice wave sync canvas -->
+        <canvas id="waveCanvas"></canvas>
+
+        <!-- Input -->
+        <div class="inputbar">
+          <input id="textInput" class="textbox" placeholder="Say or type command..." />
+          <button class="btn send" id="sendBtn">Send</button>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <button class="btn ok" id="enableMicBtn">🎤 Enable Mic</button>
+          <button class="btn" id="wakeBtn">☀️ Wake</button>
+          <button class="btn danger" id="sleepBtn">🌙 Sleep</button>
+          <button class="btn" id="toggleFormatBtn">🕒 12/24h</button>
+          <button class="btn" id="wideBtn">🖥️ Wide Mode</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Cheatsheet Modal (updated) -->
+<div id="cheatsOverlay" aria-hidden="true">
+  <div class="cheats-backdrop" id="cheatsBackdrop"></div>
+  <div class="cheats-card" role="dialog" aria-modal="true" aria-labelledby="cheatsTitle">
+    <div class="cheats-head">
+      <h3 id="cheatsTitle">🧪 Quick Command Cheatsheet</h3>
+      <button class="closeBtn" id="cheatsClose" aria-label="Close">✖</button>
+    </div>
+    <div class="cheats-body">
+      <div class="cheats-col">
+        <h4>Core</h4>
+        <ul>
+          <li><code>wake up</code> / <code>wakeup</code></li>
+          <li><code>sleep</code> / <code>so jao</code></li>
+          <li><code>enable mic</code> / <code>mic on</code> / <code>start mic</code></li>
+        </ul>
+
+        <h4>Websites</h4>
+        <ul>
+          <li><code>open youtube</code>, <code>google kholo</code></li>
+          <li><code>open bloxd</code>, <code>open my website</code></li>
+        </ul>
+
+        <h4>Music</h4>
+        <ul>
+          <li><code>play song</code> / <code>song chalao</code> / <code>music play karo</code></li>
+        </ul>
+
+        <h4>Time & Date</h4>
+        <ul>
+          <li><code>time kya hai</code>, <code>date</code>, <code>day</code>, <code>year</code></li>
+          <li><code>24 hour</code> / <code>12 hour</code></li>
+        </ul>
+
+        <h4>Language</h4>
+        <ul>
+          <li><code>language hindi</code> / <code>prefer hindi</code></li>
+          <li><code>language english</code> / <code>prefer english</code></li>
+        </ul>
+
+        <h4>Personality</h4>
+        <ul>
+          <li><code>change mode to serious</code></li>
+          <li><code>change mode to friendly</code></li>
+        </ul>
+      </div>
+
+      <div class="cheats-col">
+        <h4>Weather</h4>
+        <ul>
+          <li><code>weather in delhi</code> / <code>mausam delhi</code></li>
+          <li><code>aaj ka mausam</code> (uses saved city)</li>
+          <li><code>mera shehar Delhi hai</code> (save default city)</li>
+        </ul>
+
+        <h4>YouTube Search</h4>
+        <ul>
+          <li><code>youtube search lo-fi</code></li>
+          <li><code>search youtube for lo-fi</code></li>
+          <li><code>play lo-fi on youtube</code></li>
+        </ul>
+
+        <h4>Smart Fallback</h4>
+        <ul>
+          <li>Unknown command → Auto: <code>google.com/search?q=[your command]</code></li>
+          <li>Speaks: “Mujhe ye nahi pata, par main aapke liye Google par search kar raha hoon.”</li>
+        </ul>
+
+        <h4>Themes</h4>
+        <ul>
+          <li><code>umbrix turn red</code> / <code>cyan</code> / <code>blue</code> / <code>green</code></li>
+          <li><code>neon mode on</code></li>
+          <li><code>stealth mode on</code> / <code>stealth mode off</code></li>
+          <li><code>default theme</code></li>
+        </ul>
+
+        <h4>Navigator</h4>
+        <ul>
+          <li><code>battery status</code></li>
+          <li><code>internet status</code></li>
+        </ul>
+
+        <h4>Shortcuts</h4>
+        <ul>
+          <li><code>full screen</code> / <code>fullscreen</code></li>
+          <li><code>exit full screen</code> / <code>close full screen</code></li>
+          <li><code>clear chat</code> / <code>clear history</code></li>
+          <li><code>mute voice</code> / <code>unmute voice</code></li>
+        </ul>
+
+        <h4>Memory</h4>
+        <ul>
+          <li><code>mera naam Rudra hai</code> / <code>my name is Rudra</code></li>
+          <li>Next time: “Welcome back Rudra!”</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================================================
+   Umbrix AI — Full Frontend (No backend)
+   Permissions API banner + Emoji-free TTS + All features
+   =================================================== */
+
+/* ---------- API KEYS ---------- */
+const OPENWEATHER_API_KEY = '6552b9ed34604bf684723241261401'; // Weather (OpenWeatherMap)
+const YT_API_KEY = ''; // (Optional) YouTube Data API v3
+
+/* ---------- Web Speech ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+/* ---------- Memory (localStorage) ---------- */
+const defaultMemory = {
+  name: null,
+  prefLang: 'auto',       // 'auto' | 'hi-IN' | 'en-IN'
+  timeFormat: '12h',      // '12h' | '24h'
+  ttsEnabled: true,
+  personality: 'friendly',// 'friendly' | 'serious'
+  lastSite: null,
+  defaultCity: null,
+  theme: 'default',
+  xp: 0,
+  level: 1
+};
+function loadMemory(){ try{ return Object.assign({}, defaultMemory, JSON.parse(localStorage.getItem('umbrix_memory')||'{}')); }catch(e){ return {...defaultMemory}; } }
+function saveMemory(){ localStorage.setItem('umbrix_memory', JSON.stringify(memory)); }
+let memory = loadMemory();
+
+/* ---------- State ---------- */
+let isAwake = false;
+let shouldListen = false;
+let format24h = (memory.timeFormat === '24h');
+let recognition = null;
+let voices = [];
+let voicePref = memory.prefLang || 'auto';
+let audioCtx = null, analyser = null, mediaStream = null, waveRAF = null;
+
+/* ---------- Elements ---------- */
+const shell = document.getElementById('shell');
+const sidebar = document.getElementById('sidebar');
+const toggleSideBtn = document.getElementById('toggleSide');
+const clearBtn = document.getElementById('clearBtn');
+const cheatBtn = document.getElementById('cheatBtn');
+const cheatsOverlay = document.getElementById('cheatsOverlay');
+const cheatsClose = document.getElementById('cheatsClose');
+const cheatsBackdrop = document.getElementById('cheatsBackdrop');
+
+const historyEl = document.getElementById('history');
+const subtitleEl = document.getElementById('subtitle');
+const awakePill = document.getElementById('awakePill');
+const micPill = document.getElementById('micPill');
+const formatPill = document.getElementById('formatPill');
+
+const enableMicBtn = document.getElementById('enableMicBtn');
+const wakeBtn = document.getElementById('wakeBtn');
+const sleepBtn = document.getElementById('sleepBtn');
+const toggleFormatBtn = document.getElementById('toggleFormatBtn');
+const textInput = document.getElementById('textInput');
+const sendBtn = document.getElementById('sendBtn');
+const wideBtn = document.getElementById('wideBtn');
+const voiceSelect = document.getElementById('voiceSelect');
+const chatRevealBtn = document.getElementById('chatRevealBtn');
+
+const orb = document.getElementById('orb');
+const orbWrap = document.getElementById('orbWrap');
+const orbZone = document.getElementById('orbZone');
+const waveCanvas = document.getElementById('waveCanvas');
+const waveCtx = waveCanvas.getContext('2d');
+
+/* Mic help (Permissions API) */
+const micHelpBtn = document.getElementById('micHelpBtn');
+const micHintCard = document.getElementById('micHintCard');
+const micHintClose = document.getElementById('micHintClose');
+
+/* ---------- Sites ---------- */
+const siteMap = {
+  "youtube": "https://www.youtube.com",
+  "google": "https://www.google.com",
+  "instagram": "https://www.instagram.com",
+  "pinterest": "https://www.pinterest.com",
+  "github": "https://github.com",
+  "deepseek": "https://www.deepseek.com",
+  "spotify": "https://www.spotify.com",
+  "facebook": "https://www.facebook.com",
+  "discord": "https://discord.com",
+  "reddit": "https://www.reddit.com",
+  "netflix": "https://www.netflix.com",
+  "roblox": "https://www.roblox.com",
+  "bloxd": "https://bloxd.io",
+  "my website": "https://umbrix11.github.io/Bloxd.io-T-packs/"
+};
+
+/* ---------- Helpers ---------- */
+function addLog(kind, text){
+  const row = document.createElement('div'); row.className = 'row';
+  const tag = document.createElement('div'); tag.className = 'tag ' + (kind === 'user' ? 'user' : 'ai');
+  tag.textContent = kind === 'user' ? '🎤 USER' : '🤖 UMBRIX';
+  const msg = document.createElement('div'); msg.className = 'msg'; msg.textContent = text;
+  const time = document.createElement('div'); time.className = 'time';
+  time.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  row.appendChild(tag); row.appendChild(msg); row.appendChild(time);
+  historyEl.appendChild(row); historyEl.scrollTop = historyEl.scrollHeight;
+}
+function setAwakeState(state){
+  isAwake = state;
+  awakePill.textContent = state ? 'AWAKE' : 'SLEEP';
+  awakePill.classList.toggle('awake', state);
+  awakePill.classList.toggle('sleep', !state);
+  subtitleEl.textContent = state ? 'LISTENING FOR COMMANDS' : 'IDLE';
+  setMood(state ? 'listening' : 'idle');
+}
+function setMicIndicator(on){ micPill.textContent = on ? 'MIC: ON' : 'MIC: OFF'; }
+function normalize(s){ return (s || '').toLowerCase().trim().replace(/\s+/g,' '); }
+function capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+/* ---------- Moods ---------- */
+function setMood(mood){
+  let core = 'var(--core-blue)';
+  if (mood==='listening') core = 'var(--core-green)';
+  else if (mood==='thinking') core = 'var(--core-yellow)';
+  else if (mood==='error') core = 'var(--core-red)';
+  document.documentElement.style.setProperty('--core-current', core);
+}
+
+/* ---------- Theme Engine ---------- */
+function applyTheme(name){
+  memory.theme = name; saveMemory();
+  const root = document.documentElement.style;
+  if (name==='red'){
+    root.setProperty('--cyan','#ff3b3b'); root.setProperty('--cyan-soft','#ff9898'); root.setProperty('--ring','#ff6b6b');
+  } else if (name==='cyan' || name==='blue'){
+    root.setProperty('--cyan','#00d1ff'); root.setProperty('--cyan-soft','#7be6ff'); root.setProperty('--ring','#5be1ff');
+  } else if (name==='green'){
+    root.setProperty('--cyan','#38ffb0'); root.setProperty('--cyan-soft','#9bffd8'); root.setProperty('--ring','#68ffc8');
+  } else if (name==='neon'){
+    root.setProperty('--cyan','#00fff7'); root.setProperty('--cyan-soft','#6ffff8'); root.setProperty('--ring','#48fff2');
+  } else if (name==='stealth'){
+    root.setProperty('--cyan','#808080'); root.setProperty('--cyan-soft','#a8a8a8'); root.setProperty('--ring','#777777');
+  } else { // default
+    root.setProperty('--cyan','#00d1ff'); root.setProperty('--cyan-soft','#7be6ff'); root.setProperty('--ring','#5be1ff');
+  }
+}
+
+/* ---------- XP System ---------- */
+function getLevel(xp){ return Math.floor(xp/10) + 1; }
+function gainXP(amount=1){
+  const prev = memory.level || 1;
+  memory.xp = (memory.xp||0) + amount;
+  memory.level = getLevel(memory.xp);
+  saveMemory();
+  if (memory.level > prev){
+    orb.classList.add('flash'); setTimeout(()=>orb.classList.remove('flash'), 650);
+    if (memory.level >= 50){ speak(`Level up! Elite Assistant unlocked. Ready, Master.`); }
+    else if (memory.level >= 11){ speak(`Level ${memory.level}. Pro mode active.`); }
+    else { speak(`Level ${memory.level}.`); }
+  }
+}
+
+/* ---------- Speech Synthesis (Emoji-free TTS) ---------- */
+function initVoices(){ voices = speechSynthesis.getVoices() || voices; }
+speechSynthesis.onvoiceschanged = initVoices; initVoices();
+function pickVoice(lang){
+  if (!voices || voices.length===0) return null;
+  let v = voices.find(v => (v.lang||'').toLowerCase() === lang.toLowerCase());
+  if (v) return v;
+  if (lang.toLowerCase()==='hi-in'){
+    v = voices.find(v => (v.lang||'').toLowerCase() === 'en-in');
+    if (v) return v;
+  }
+  return voices.find(v => (v.name||'').toLowerCase().includes('google')) || voices[0] || null;
+}
+function isHindiText(text){
+  const dev = /[\u0900-\u097F]/;
+  const words = /(kya|hai|aaj|din|saal|tareekh|kholo|so jao|sojao|samay|kitne baje|kaisa|kaise|mausam)/i;
+  return dev.test(text) || words.test(text);
+}
+/* Remove emojis & pictographs for TTS (but keep visual emojis in chat) */
+function stripEmojisOnly(s){
+  // Remove most emoji/pictograph ranges + variation selectors
+  return s.replace(/[\u{1F000}-\u{1FAFF}\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '')
+          .replace(/\s{2,}/g,' ').trim();
+}
+function speak(text){
+  // Visual log remains as-is (may contain emoji)
+  let msg = text;
+  if (memory.personality === 'serious'){
+    // In serious mode also remove emojis visually
+    msg = stripEmojisOnly(msg);
+  }
+  addLog('ai', msg);
+
+  if (!memory.ttsEnabled) return;
+
+  // TTS: ALWAYS emoji-free
+  const ttsText = stripEmojisOnly(text);
+
+  const lang = (voicePref==='auto') ? (isHindiText(ttsText)?'hi-IN':'en-IN') : voicePref;
+  const u = new SpeechSynthesisUtterance(ttsText);
+  u.lang = lang;
+  const v = pickVoice(lang); if (v) u.voice = v;
+  u.rate = 1.0; u.pitch = 1.0;
+  setMood('thinking');
+  u.onend = ()=> setMood(isAwake ? 'listening' : 'idle');
+  u.onerror = ()=> setMood('error');
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+voiceSelect.value = voicePref;
+voiceSelect.addEventListener('change', ()=>{
+  voicePref = voiceSelect.value;
+  memory.prefLang = voicePref; saveMemory();
+});
+
+/* ---------- Time/Date ---------- */
+function getTimeString(){
+  const now = new Date();
+  return format24h
+    ? now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false})
+    : now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true});
+}
+function getDateString(){ return new Date().toLocaleDateString([], {year:'numeric', month:'long', day:'numeric'}); }
+function getDayString(){ return new Date().toLocaleDateString([], {weekday:'long'}); }
+function getYearString(){ return String(new Date().getFullYear()); }
+
+/* ---------- Recognition ---------- */
+function setupRecognition(){
+  if (!SR){ addLog('ai','SpeechRecognition not supported. Use latest Chrome/Edge.'); setMood('error'); return; }
+  recognition = new SR();
+  recognition.lang = 'en-IN';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.onstart = ()=> { setMicIndicator(true); setMood(isAwake ? 'listening' : 'idle'); };
+  recognition.onend   = ()=> { setMicIndicator(false); setMood('idle'); if (shouldListen) setTimeout(()=>safeStartRecognition(), 300); };
+  recognition.onerror = (ev)=> { addLog('ai', `Mic error: ${ev.error}`); setMood('error'); if (shouldListen) setTimeout(()=>safeStartRecognition(), 600); };
+  recognition.onresult = (e)=> { const res = e.results[e.resultIndex]; if (res && res[0]) handleCommand(res[0].transcript.trim()); };
+}
+function safeStartRecognition(){ if (!recognition) return; try{ recognition.start(); }catch(e){} }
+
+/* ---------- Web Audio API — Voice Wave Sync ---------- */
+function resizeCanvas(){
+  const r = orbZone.getBoundingClientRect();
+  waveCanvas.width = Math.floor(r.width);
+  waveCanvas.height = Math.floor(r.height);
+}
+window.addEventListener('resize', resizeCanvas);
+function startWave(){
+  if (audioCtx) return;
+  navigator.mediaDevices.getUserMedia({ audio:true })
+    .then(stream=>{
+      mediaStream = stream;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      resizeCanvas();
+      animateWave();
+    })
+    .catch(err=>{
+      addLog('ai','Mic permission blocked for waveform.');
+      setMood('error');
+    });
+}
+function stopWave(){
+  if (waveRAF) cancelAnimationFrame(waveRAF);
+  waveRAF = null;
+  if (audioCtx){ audioCtx.close(); audioCtx=null; }
+  if (mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+}
+function animateWave(){
+  const buffer = new Uint8Array(analyser.frequencyBinCount);
+  const draw = ()=>{
+    if (!analyser) return;
+    analyser.getByteFrequencyData(buffer);
+    let sum=0; for (let i=0;i<buffer.length;i++) sum+=buffer[i];
+    const amp = sum / buffer.length;
+    const dur = (amp<20)?4.2:(amp<50)?3.6:(amp<100)?3.0:(amp<160)?2.4:2.0;
+    document.documentElement.style.setProperty('--pulse', dur+'s');
+    const glow = Math.min(amp/255,1);
+    orb.style.boxShadow = `inset 0 0 ${80+glow*80}px rgba(0,209,255,${0.35+glow*0.35}), 0 0 ${40+glow*60}px rgba(0,209,255,${0.20+glow*0.30})`;
+
+    const w = waveCanvas.width, h = waveCanvas.height;
+    waveCtx.clearRect(0,0,w,h);
+    waveCtx.save(); waveCtx.translate(w/2,h/2);
+    const bars = 60;
+    const radius = Math.min(w,h)/4;
+    for (let i=0;i<bars;i++){
+      const angle = (i/bars)*Math.PI*2;
+      const idx = Math.floor((i/bars)*buffer.length);
+      const v = buffer[idx]/255;
+      const len = radius*(0.6 + v*0.9);
+      const x1 = Math.cos(angle)*radius, y1 = Math.sin(angle)*radius;
+      const x2 = Math.cos(angle)*len,    y2 = Math.sin(angle)*len;
+      waveCtx.strokeStyle = `rgba(0,209,255,${0.25 + v*0.55})`;
+      waveCtx.lineWidth = 2 + v*3;
+      waveCtx.beginPath(); waveCtx.moveTo(x1,y1); waveCtx.lineTo(x2,y2); waveCtx.stroke();
+    }
+    waveCtx.restore();
+    waveRAF = requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+/* ---------- Cheatsheet open/close ---------- */
+function openCheats(){ cheatsOverlay.classList.add('show'); cheatsOverlay.setAttribute('aria-hidden','false'); }
+function closeCheats(){ cheatsOverlay.classList.remove('show'); cheatsOverlay.setAttribute('aria-hidden','true'); }
+cheatBtn.addEventListener('click', openCheats);
+cheatsClose.addEventListener('click', closeCheats);
+cheatsBackdrop.addEventListener('click', closeCheats);
+document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && cheatsOverlay.classList.contains('show')) closeCheats(); });
+
+/* ---------- Weather API ---------- */
+async function fetchWeather(city){
+  const q = city.trim();
+  if (!q) throw new Error('City required.');
+  const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(q)}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('OpenWeather error: '+res.status);
+  const j = await res.json();
+  return {
+    source: 'OpenWeatherMap',
+    city: j.name || q,
+    temp: j.main?.temp,
+    feels: j.main?.feels_like,
+    cond: j.weather?.[0]?.description,
+    hum: j.main?.humidity,
+    wind: j.wind?.speed
+  };
+}
+function speakWeather(w){
+  const line = `${w.city} ka mausam: ${Math.round(w.temp)}°C, ${w.cond || 'clear'}, humidity ${w.hum}%, hawa ${w.wind} m/s.`;
+  addLog('ai', `Source: ${w.source}`);
+  speak(line);
+}
+
+/* ---------- YouTube Search ---------- */
+async function youtubeSearch(query){
+  const q = query.trim();
+  if (!q) return;
+  if (YT_API_KEY){
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(q)}&key=${YT_API_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok){ addLog('ai','YouTube API error: '+res.status); window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,'_blank'); return; }
+    const j = await res.json();
+    const items = j.items || [];
+    if (items.length===0){ addLog('ai','No results. Opening search page.'); window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,'_blank'); return; }
+    const top = items[0];
+    const vidId = top.id?.videoId;
+    const topUrl = `https://www.youtube.com/watch?v=${vidId}`;
+    speak(`Playing first result: ${top.snippet?.title || q}`);
+    try{ window.open(topUrl,'_blank'); }catch(e){ addLog('ai','Popup blocked.'); }
+    items.forEach(it=>{
+      const url = `https://www.youtube.com/watch?v=${it.id?.videoId}`;
+      addLog('ai', `YouTube: ${it.snippet?.title} — ${url}`);
+    });
+  } else {
+    addLog('ai','YouTube API key not set. Opening search page.');
+    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,'_blank');
+  }
+}
+
+/* ---------- Navigator status ---------- */
+async function batteryStatus(){
+  try{
+    const batt = navigator.getBattery ? await navigator.getBattery() : null;
+    if (batt){
+      const msg = `Battery: ${Math.round(batt.level*100)}% ${batt.charging?'(charging)':''}`;
+      speak(msg);
+    } else { speak('Battery API not available.'); }
+  }catch(e){ speak('Battery status read failed.'); }
+}
+function internetStatus(){
+  const online = navigator.onLine;
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const type = conn?.effectiveType || 'unknown';
+  const down = conn?.downlink ? `${conn.downlink} Mbps` : 'n/a';
+  speak(`Internet: ${online?'online':'offline'}, type: ${type}, downlink: ${down}.`);
+}
+
+/* ---------- Google fallback ---------- */
+function googleFallback(query){
+  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  speak('Mujhe ye nahi pata, par main aapke liye Google par search kar raha hoon.');
+  try{ window.open(url,'_blank'); }catch(e){ addLog('ai','Popup blocked: '+url); }
+}
+
+/* ---------- Permissions API: Mic Guidance ---------- */
+async function checkMicPermission(){
+  try{
+    if (!('permissions' in navigator)) { return; }
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    // Show hint for prompt (or denied if you prefer)
+    micHintCard.hidden = !(status.state === 'prompt' || status.state === 'denied');
+    if ('onchange' in status){
+      status.onchange = ()=> {
+        micHintCard.hidden = !(status.state === 'prompt' || status.state === 'denied');
+      };
+    }
+  }catch(e){ /* ignore */ }
+}
+micHelpBtn.addEventListener('click', ()=>{ micHintCard.hidden = !micHintCard.hidden; });
+micHintClose.addEventListener('click', ()=>{ micHintCard.hidden = true; });
+
+/* ---------- Command Handling ---------- */
+function handleCommand(raw){
+  const cmd = normalize(raw); if (!cmd) return;
+  addLog('user', raw);
+
+  // Wake/Sleep
+  if (/(^|\s)(wake up|wakeup)(\s|$)/.test(cmd)){
+    setAwakeState(true);
+    speak(memory.name ? `Umbrix awake. Namaste ${memory.name}!` : 'Umbrix awake. Kaise madad kar sakta hoon?');
+    if (SR && recognition){ shouldListen = true; safeStartRecognition(); }
+    gainXP(); return;
+  }
+  if (/(^|\s)(sleep|so jao|sojao|stop listening)(\s|$)/.test(cmd)){
+    setAwakeState(false); speak('Sleeping. Say "wake up" to resume.'); gainXP(); return;
+  }
+  if (!isAwake){ speak('I am idle. Please say "wake up".'); return; }
+
+  /* Themes */
+  if (/umbrix(,)? turn (red|cyan|blue|green)/.test(cmd)){
+    const color = cmd.match(/turn\s+(red|cyan|blue|green)/)[1];
+    applyTheme(color); speak(`Theme set to ${color}.`); gainXP(); return;
+  }
+  if (/neon mode on|neon on/.test(cmd)){ applyTheme('neon'); speak('Neon mode on.'); gainXP(); return; }
+  if (/stealth mode (on|enable)|stealth on/.test(cmd)){ applyTheme('stealth'); speak('Stealth mode enabled.'); gainXP(); return; }
+  if (/stealth mode off|stealth disable/.test(cmd)){ applyTheme('default'); speak('Stealth mode off.'); gainXP(); return; }
+  if (/default theme/.test(cmd)){ applyTheme('default'); speak('Default theme applied.'); gainXP(); return; }
+
+  /* Memory: name/default city */
+  const nameMatch = cmd.match(/(mera naam|my name is)\s+([a-zA-Z\u0900-\u097F][\w\u0900-\u097F\s]*)/);
+  if (nameMatch){ let name = nameMatch[2].trim().replace(/\s+hai$/,'').trim(); memory.name = capitalize(name); saveMemory(); speak(`Welcome back ${memory.name}!`); gainXP(); return; }
+  const cityMatch = cmd.match(/(mera shehar|my city is)\s+([a-zA-Z\u0900-\u097F][\w\u0900-\u097F\s]*)/);
+  if (cityMatch){ memory.defaultCity = cityMatch[2].trim(); saveMemory(); speak(`Default city set to ${memory.defaultCity}.`); gainXP(); return; }
+
+  /* Preferred language */
+  if (/language (hindi|english)|prefer (hindi|english)/.test(cmd)){
+    memory.prefLang = cmd.includes('hindi') ? 'hi-IN' : 'en-IN'; voicePref = memory.prefLang; voiceSelect.value = voicePref; saveMemory();
+    speak(memory.prefLang==='hi-IN' ? 'Language set to Hindi.' : 'Language set to English.'); gainXP(); return;
+  }
+
+  /* Shortcuts */
+  if (/full ?screen|fullscreen/.test(cmd)){ requestFull(); gainXP(); return; }
+  if (/exit full ?screen|close full ?screen/.test(cmd)){ exitFull(); gainXP(); return; }
+  if (/clear chat|clear history/.test(cmd)){ historyEl.innerHTML=''; speak('Chat cleared.'); gainXP(); return; }
+  if (/enable mic|mic on|start mic/.test(cmd)){ enableMic(); gainXP(); return; }
+  if (/(mute voice|voice mute)/.test(cmd)){ memory.ttsEnabled=false; saveMemory(); addLog('ai','Voice muted.'); gainXP(); return; }
+  if (/(unmute voice|voice on|voice enable)/.test(cmd)){ memory.ttsEnabled=true; saveMemory(); addLog('ai','Voice enabled.'); gainXP(); return; }
+
+  /* Status via Navigator */
+  if (/battery status|battery/.test(cmd)){ batteryStatus(); gainXP(); return; }
+  if (/internet status|network status|connection/.test(cmd)){ internetStatus(); gainXP(); return; }
+
+  /* Time/Date/Day/Year */
+  if (/time|kitne baje|baja|samay/.test(cmd)){ speak(`Current time is ${getTimeString()}`); gainXP(); return; }
+  if (/date|tareekh/.test(cmd)){ speak(`Today is ${getDateString()}`); gainXP(); return; }
+  if (/day|din/.test(cmd)){ speak(`Aaj ${getDayString()} hai`); gainXP(); return; }
+  if (/year|saal/.test(cmd)){ speak(`Year is ${getYearString()}`); gainXP(); return; }
+  if (/24 ?hour|24h/.test(cmd)){ format24h=true; memory.timeFormat='24h'; saveMemory(); formatPill.textContent='TIME: 24h'; speak('Set to twenty four hour format.'); gainXP(); return; }
+  if (/12 ?hour|12h/.test(cmd)){ format24h=false; memory.timeFormat='12h'; saveMemory(); formatPill.textContent='TIME: 12h'; speak('Set to twelve hour format.'); gainXP(); return; }
+
+  /* Personality switch */
+  if (/change mode to (serious|friendly)/.test(cmd)){
+    memory.personality = cmd.includes('serious') ? 'serious' : 'friendly'; saveMemory();
+    speak(memory.personality==='serious' ? 'Mode changed to serious.' : 'Mode changed to friendly 🙂'); gainXP(); return;
+  }
+
+  /* Play Song (fixed links) */
+  if (/(play( the)? song|song chalao|music play karo|gaana chalao|song play karo)/.test(cmd)){
+    const links = ["https://www.youtube.com/watch?v=sAzlWScHTc4&list=RDsAzlWScHTc4&start_radio=1","https://youtu.be/0ayQv3qjH84","https://youtu.be/0wB7iuER2Z0"];
+    const link = links[Math.floor(Math.random()*links.length)];
+    memory.lastSite = 'YouTube Song'; saveMemory();
+    speak('Thoda music ho jaaye. Opening YouTube.');
+    try{ window.open(link,'_blank'); }catch(e){ addLog('ai','Popup blocked. Allow popups.'); }
+    gainXP(); return;
+  }
+
+  /* YouTube Search */
+  const ytMatch = cmd.match(/(youtube search|search youtube for)\s+(.*)/);
+  const ytPlay  = cmd.match(/play\s+(.*)\s+on youtube/);
+  if (ytMatch || ytPlay){
+    const q = (ytMatch ? ytMatch[2] : ytPlay[1]).trim();
+    speak(`Searching YouTube for ${q}…`);
+    youtubeSearch(q); gainXP(); return;
+  }
+
+  /* Weather */
+  const wIn = cmd.match(/(weather in|mausam|temperature)\s+(.*)/);
+  if (wIn){
+    const city = wIn[2].trim();
+    speak(`Mausam check ho raha hai: ${city}…`);
+    setMood('thinking');
+    fetchWeather(city).then(w=>{ speakWeather(w); gainXP(); })
+      .catch(err=>{ setMood('error'); addLog('ai','Weather error: '+err.message); speak('Sorry, weather fetch failed.'); });
+    return;
+  }
+  if (/aaj ka mausam/.test(cmd)){
+    const city = memory.defaultCity;
+    if (!city){ speak('Default city set nahi hai. Boliye: "mera shehar Delhi hai".'); return; }
+    speak(`Mausam check: ${city}…`);
+    setMood('thinking');
+    fetchWeather(city).then(w=>{ speakWeather(w); gainXP(); })
+      .catch(err=>{ setMood('error'); addLog('ai','Weather error: '+err.message); speak('Sorry, weather fetch failed.'); });
+    return;
+  }
+
+  /* Open websites */
+  const openMatch = cmd.match(/\b(open|kholo|khol do|kholna)\b\s+(.*)/);
+  if (openMatch){
+    const siteRaw = openMatch[2].trim();
+    const siteKey = siteRaw.replace(/the |app |website |site |please |ji/gi,'').replace(/\s+/g,' ').trim();
+    const synonyms = { 'yt':'youtube','insta':'instagram','ig':'instagram','gh':'github','fb':'facebook','bloxd io':'bloxd','bloxd.io':'bloxd' };
+    let key = synonyms[siteKey] || siteKey;
+    if (key.includes('my website')) key = 'my website';
+    const candidates = Object.keys(siteMap);
+    let chosen = candidates.find(k => key.includes(k)) || candidates.find(k => k.includes(key));
+    if (!chosen && siteMap[key]) chosen = key;
+    if (chosen){
+      memory.lastSite = capitalize(chosen); saveMemory();
+      speak(`Opening ${capitalize(chosen)}.`);
+      try{ window.open(siteMap[chosen],'_blank'); }catch(e){ addLog('ai','Popup blocked.'); }
+      gainXP(); return;
+    } else { speak('Sorry, site not recognized.'); googleFallback(siteKey); return; }
+  }
+
+  /* Friendly replies */
+  if (/hello|hi|namaste|hey/.test(cmd)){ speak('Hello! Umbrix AI ready hai. Bataiye kya kaam hai?'); gainXP(); return; }
+  if (/kaisa ho|kaise ho|how are you|kya haal|kya haal hai/.test(cmd)){ speak('Main mast hoon, aap kaise ho?'); gainXP(); return; }
+  if (/(aur batao|aur btao|or batao)/.test(cmd)){ speak('Bas sab badiya chal raha hai, aap sunao?'); gainXP(); return; }
+  if (/(kya chal raha hai|kya ho raha hai)/.test(cmd)){ speak('Umbrix online hai, commands sun raha hoon. Aap batao?'); gainXP(); return; }
+  if (/(milkar ac+ha laga|milkar achha laga|milkar acha laga)/.test(cmd)){ speak('Mujhe bhi! Milkar accha laga.'); gainXP(); return; }
+
+  /* Smart Fallback: unknown command -> Google */
+  googleFallback(raw);
+}
+
+/* ---------- UI Events ---------- */
+function enableMic(){
+  setupRecognition(); shouldListen = true; safeStartRecognition();
+  speak('Microphone enabled. Say "wake up" to start.');
+  startWave(); // Voice visuals
+  checkMicPermission(); // refresh hint state after user action
+}
+enableMicBtn.addEventListener('click', enableMic);
+wakeBtn.addEventListener('click', () => handleCommand('wake up'));
+sleepBtn.addEventListener('click', () => handleCommand('sleep'));
+toggleFormatBtn.addEventListener('click', () => {
+  format24h = !format24h; memory.timeFormat = format24h ? '24h' : '12h'; saveMemory();
+  formatPill.textContent = 'TIME: ' + (format24h ? '24h' : '12h');
+  speak('Time format changed.');
+});
+clearBtn.addEventListener('click', () => { historyEl.innerHTML=''; });
+
+let wideOn=false;
+wideBtn.addEventListener('click', () => {
+  wideOn = !wideOn;
+  document.body.classList.toggle('wide', wideOn);
+  wideBtn.textContent = wideOn ? '🖥️ Wide Mode: ON' : '🖥️ Wide Mode';
+});
+
+let sidebarVisible=true;
+toggleSideBtn.addEventListener('click', () => {
+  sidebarVisible = !sidebarVisible;
+  sidebar.style.display = sidebarVisible ? 'flex' : 'none';
+  shell.classList.toggle('collapsed', !sidebarVisible);
+});
+chatRevealBtn.addEventListener('click', () => {
+  sidebarVisible = true;
+  sidebar.style.display = 'flex';
+  shell.classList.remove('collapsed');
+});
+
+sendBtn.addEventListener('click', () => {
+  const v = textInput.value.trim(); if (!v) return; textInput.value='';
+  handleCommand(v);
+});
+textInput.addEventListener('keydown', e => { if (e.key==='Enter') sendBtn.click(); });
+
+/* ---------- Fullscreen ---------- */
+function requestFull(){
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  speak('Fullscreen enabled.');
+}
+function exitFull(){
+  if (document.exitFullscreen) document.exitFullscreen();
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  speak('Exited fullscreen.');
+}
+
+/* ---------- Parallax Orb ---------- */
+orbZone.addEventListener('mousemove', (ev) => {
+  const r = orbZone.getBoundingClientRect();
+  const mx = (ev.clientX - r.left) / r.width - 0.5;
+  const my = (ev.clientY - r.top) / r.height - 0.5;
+  const tiltX = my * -6;
+  const tiltY = mx * 6;
+  orbWrap.style.transform = `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+});
+orbZone.addEventListener('mouseleave', () => { orbWrap.style.transform = 'rotateX(0) rotateY(0)'; });
+
+/* ---------- Init ---------- */
+(function init(){
+  setAwakeState(false);
+  setMicIndicator(false);
+  formatPill.textContent = 'TIME: ' + (format24h ? '24h' : '12h');
+  voiceSelect.value = voicePref;
+  resizeCanvas();
+  applyTheme(memory.theme || 'default');
+  const greeting = memory.name ? `Welcome back ${memory.name}!` : 'Namaste! I am Umbrix. Say "wake up" to start.';
+  addLog('ai', `${greeting} (Level ${memory.level || 1}, XP ${memory.xp || 0})`);
+  checkMicPermission(); // Permissions API banner on load
+})();
+</script>
+</body>
+</html>
