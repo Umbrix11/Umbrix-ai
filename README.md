@@ -1,14 +1,7 @@
 # Umbrix-ai
 
 A simple web project built with HTML (and optionally other web tech).  
-*(Add a short description here — what this project does!)*
-
-## 🚀 Overview
-
-Umbrix-ai is a personal web project that serves as a (website / tool / portfolio / whatever it’s for).  
-It’s built using HTML and designed to be lightweight and easy to customize.
-
-(🔹 Core Controls
+*(🔹 Core Controls
 
 Wake / Sleep Commands – Activate or put Umbrix AI to sleep using voice or text.
 
@@ -80,7 +73,13 @@ Voice Control – Mute or unmute voice responses.
 
 Personal Memory – Save your name and preferences.
 
-Smart Welcome – Personalized greetings like “Welcome back, your name!”  )
+Smart Welcome – Personalized greetings like “Welcome back, your name!” )*
+
+## 🚀 Overview
+
+Umbrix-ai is a personal web project that serves as a (website / tool / portfolio / whatever it’s for).  
+It’s built using HTML and designed to be lightweight and easy to customize.
+
 
 ## 📁 Project Structure
 
