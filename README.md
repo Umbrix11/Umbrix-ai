@@ -8,6 +8,80 @@ A simple web project built with HTML (and optionally other web tech).
 Umbrix-ai is a personal web project that serves as a (website / tool / portfolio / whatever it’s for).  
 It’s built using HTML and designed to be lightweight and easy to customize.
 
+(🔹 Core Controls
+
+Wake / Sleep Commands – Activate or put Umbrix AI to sleep using voice or text.
+
+Microphone Control – Enable or disable microphone input instantly.
+
+🌐 Website Navigation
+
+Quick Website Access – Open popular websites like YouTube, Google, Bloxd, or your own website using simple commands.
+
+🎵 Music Control
+
+Music Playback – Play songs or music instantly with voice commands.
+
+YouTube Music Support – Search and play music directly from YouTube.
+
+⏰ Time & Date
+
+Current Time & Date – Ask for time, date, day, or year anytime.
+
+12 / 24 Hour Format – Switch between time formats easily.
+
+🌍 Language Preferences
+
+Multi-Language Support – Switch between Hindi and English.
+
+Preferred Language Memory – Umbrix remembers your language choice.
+
+🧠 Personality Modes
+
+Dynamic Personality – Change assistant behavior between Serious and Friendly modes.
+
+🌦 Weather Updates
+
+Live Weather Info – Get weather updates for any city.
+
+Saved City Support – Set your default city and ask “Aaj ka mausam” anytime.
+
+▶️ YouTube Search
+
+Smart YouTube Search – Search and play videos directly using voice commands.
+
+🤖 Smart Fallback System
+
+Auto Google Search – Unknown commands are automatically searched on Google.
+
+Voice Feedback – Responds clearly in Hindi or English when a command isn’t recognized.
+
+🎨 Themes & Appearance
+
+Custom Themes – Switch between Red, Cyan, Blue, Green, or Default themes.
+
+Special Modes – Enable Neon Mode or Stealth Mode instantly.
+
+🧭 System Navigator
+
+Battery Status – Check device battery level.
+
+Internet Status – Instantly know if you’re online or offline.
+
+⚡ Shortcuts
+
+Fullscreen Control – Enter or exit fullscreen mode.
+
+Chat Management – Clear chat or history with one command.
+
+Voice Control – Mute or unmute voice responses.
+
+🧩 Memory System
+
+Personal Memory – Save your name and preferences.
+
+Smart Welcome – Personalized greetings like “Welcome back, your name!”  )
+
 ## 📁 Project Structure
 
 Umbrix-ai/
